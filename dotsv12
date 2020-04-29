@@ -1,0 +1,286 @@
+# dots
+# jason r. carroll
+# april 2020
+# v0.1 - board design & experimenting 4/11/20
+# v0.2 - user input and grid building
+# v0.3 - player field is active and seems to be working, player input (maybe simplify?)
+# v0.4 - putting lines between the dots now works
+# v0.5 - cleanup, got square check working
+# v0.6 - win check - uses global varibles (maybe refine this eliminating globals?) - game is officially working now, still needs refinement 
+# v0.7 - add chain reaction (repeat turn when a player scores)
+# v0.8 - add scoring message, add shortcut codes for making moves - rough program now fully functional with all features 
+# v0.9 - refinement, cleanup, user instructions
+# v0.10 - make a note when one player can't win (not working yet), add quit-during-game functionality, title screen
+# v0.11 - fixed player-win-check, error trapping, ready for play-testing! 4/14/20
+# v0.12 - simplified player line placement to two characters based on alphanumeric combos, cleaned up instructions, expanded grid maximum to 9 x 16 
+
+# set command line window to proper size
+
+from os import system
+system('mode con cols=80 lines=35')
+
+# define functions
+
+# print playing field including scoring grid
+
+def print_grid():
+    print('    ',end='')
+    for i in range(x+1):
+        print(list(alph.keys())[list(alph.values()).index(i)].upper()+'   ',end='')
+    print()
+    print('    ',end='')
+    for i in range(x):
+        print('| '+list(alph.keys())[list(alph.values()).index(i)]+' ',end='')
+    print('|')
+    for j in range(y):
+        print(str(j)+' — ',end='')
+        for i in range(x):
+            print('o '+row[i,j]+' ',end='')
+        print('o',end='')
+        print()
+        print('  '+str(j)+' ',end='')
+        for i in range(x):
+            print(col[i,j]+' '+grid[i,j]+' ',end='')
+        print(col[x,j],end='')
+        print()
+    print(str(j+1)+' — ',end='')
+    for i in range(x):
+        print('o '+row[i,y]+' ',end='')
+    print('o',end='')
+    print('\n')
+
+# draw player line
+
+def player_line():
+    rc = input('Enter (H)elp, (Q)uit, or line location (e.g., 1a, a1): ')
+    if len(rc) == 2:
+        try:
+            if rc[0].isalpha():
+                col[alph[rc[0].lower()],int(rc[1])] = '|'
+            elif not rc[0].isalpha():
+                row[alph[rc[1].lower()],int(rc[0])] = '—'
+        except:
+            pass
+    elif rc.lower() == 'h':
+        cls()
+        print('\nHelp:\n')
+        dots_help()
+        input('\nPress [Enter] to continue... ')
+        swap_player()
+    elif rc.lower() == 'q':
+        global game_over
+        game_over = 1
+
+# check to see if a box was completed
+
+def check_box():
+    for i in range(x):
+        for j in range(y):
+            if grid[i,j] == ' ':
+                if row[i,j] == '—' and row[i,j+1] == '—' and col[i,j] == '|' and col[i+1,j] == '|':
+                    grid[i,j] = cp
+
+# check to see if all the boxes are filled, and if so who wins 
+
+def check_win():
+    global s_prev
+    global s1
+    s1 = 0
+    global s2
+    s2 = 0
+    for i in range(x):
+        for j in range(y):
+            if grid[i,j] == p1:
+                s1 = s1 + 1
+            if grid[i,j] == p2:
+                s2 = s2 + 1
+    if s1 + s2 == totalsp:
+        global game_over
+        game_over = 1
+    if s1 + s2 != s_prev:
+        swap_player()
+        global msg
+        msg = 'Chain reaction...go again!\n'
+    s_prev = s1 + s2
+
+# check to see if it's impossible for one player to win
+
+def check_score():
+    global msg2
+    if totalsp % 2 == 0:
+        if (s1 - s2) > (totalsp - (s1 + s2) + 1):
+                 msg2 = 'It is no longer possible for ' + str(player2) + ' to win.'
+        if (s2 - s1) > (totalsp - (s1 + s2) + 1):
+                 msg2 = 'It is no longer possible for ' + str(player1) + ' to win.' 
+    else:
+        if (s1 - s2) > (totalsp - (s1 + s2)):
+                 msg2 = 'It is no longer possible for ' + str(player2) + ' to win.'
+        if (s2 - s1) > (totalsp - (s1 + s2)):
+                 msg2 = 'It is no longer possible for ' + str(player1) + ' to win.'
+
+# switch players
+
+def swap_player():
+    global cp
+    global cp_name
+    if cp == p1:
+        cp = p2
+        cp_name = player2
+    else:
+        cp = p1
+        cp_name = player1
+    print(f"{cp_name}'s turn ({cp}).")
+
+# clear screen 
+
+def cls():
+    print('\n'*49)
+
+# deliver some messages!
+
+def message():
+    global msg
+    global msg2
+    print(msg2)
+    print(msg)
+    msg = ''
+    msg2 = ''
+
+# help function
+
+def dots_help():
+    print('''- Two players take turns drawing lines between dots on a grid.
+- A player who completes a box scores that box and takes another turn.
+- Place lines on the grid using letter-number coordinates:
+
+  To place a vertical line start with a letter...example: c0 
+  To place a horizontal line start with a number...example: 1b 
+  Capitalization is ignored. Illustration:
+  
+  Player input: c0 [enter]             Player input: 1b [enter]
+  Means: column c, space 0             Means: row 1, space b
+  
+      A   B   C                            A   B   C
+      | a | b |                            | a | b |
+  0 — o   o   o                        0 — o   o   o
+    0         | <<< places line          0          
+  1 — o   o   o     at c0              1 — o   o — o <<< places line
+    1                                    1               at 1b
+  2 — o   o   o                        2 — o   o   o''')
+
+# main gameplay loop
+
+def main():
+    while game_over == 0:
+        cls()
+        message()
+        print_grid()
+        swap_player()
+        player_line()
+        check_box()
+        check_win()
+        check_score()
+
+# *** begin program ***
+
+# initialize some variables
+
+game_over = 0
+s_prev = 0
+msg = ''
+msg2 = ''
+alph = {'a':0,'b':1,'c':2,'d':3,'e':4,'f':5,'g':6,'h':7,'i':8,
+        'j':9,'k':10,'l':11,'m':12,'n':13,'o':14,'p':15,'q':16,
+        'r':17,'s':18,'t':19,'u':20,'v':21,'w':22,'x':23,'y':24,
+        'z':25}
+
+# title and instructions
+
+cls()
+print('''
+o — o — o — o — o — o — o — o — o
+|                               |
+o   DDDD    OOO   TTTTT   SSS   o
+|   D   D  O   O    T    S      |
+o   D   D  O   O    T     SSS   o
+|   D   D  O   O    T        S  |
+o   DDDD    OOO     T     SSS   o
+|                               |
+o — o — o — o — o — o — o — o — o''')
+print('\nBy Jason R. Carroll\n')
+dots_help()
+print("\nLet's get started!\n")
+
+# get player names and define score marker as first letter of each name
+
+while True:
+    try:    
+        player1 = input('Player 1 name? ')
+        p1 = player1[0].upper()
+        if len(player1) > 0:
+            player1 = player1.capitalize()
+            print(f"You'll show up on the grid as {p1}.\n")
+            break
+    except:
+        print('Please enter your name.')
+
+while True:
+    try:
+        player2 = input('Player 2 name? ')
+        p2 = player2[0].upper()
+        if len(player2) > 0:
+            player2 = player2.capitalize()
+            print(f"You'll show up on the grid as {p2}.\n")
+            break
+    except:
+        print('Please enter your name.')
+
+cp = p2
+cp_name = player2
+
+# ask user for game field size
+
+while True:
+    try:
+        y = int(input('Game grid height (2 to 9): '))
+        if 1 < y < 10:
+            break
+    except:
+        print('Please enter a number 2-9.')
+
+while True:
+    try:
+        x = int(input('Game grid width (2 to 16): '))
+        if 1 < x < 17:
+            break
+    except:
+        print('Please enter a number 2-9.')
+
+# define scoring grid and playing field by iterating rows and columns into a dictionary object
+
+grid = {}
+for i in range(x):
+    for j in range(y):
+        grid[i,j]=' '
+row = {}
+for i in range(x):
+    for j in range(y+1):
+        row[i,j]=' '
+col = {}
+for i in range(x+1):
+    for j in range(y):
+        col[i,j]=' '
+totalsp = x * y
+
+# run the game
+
+main()
+
+# endgame
+
+cls()    
+print('*** G A M E   O V E R ***\n')
+print_grid()
+print(f"{player1}'s score: {s1}")
+print(f"{player2}'s score: {s2}")
+input('\nPress [Enter] to quit... ')
